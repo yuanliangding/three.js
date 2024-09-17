@@ -1,7 +1,4 @@
-/**
- * @author dforrer / https://github.com/dforrer
- * Developed as part of a project at University of Applied Sciences and Arts Northwestern Switzerland (www.fhnw.ch)
- */
+import { Command } from '../Command.js';
 
 /**
  * @param editor Editor
@@ -10,75 +7,84 @@
  * @param newValue number, string, boolean or object
  * @constructor
  */
+class SetMaterialValueCommand extends Command {
 
-var SetMaterialValueCommand = function ( editor, object, attributeName, newValue, materialSlot ) {
+	constructor( editor, object = null, attributeName = '', newValue = null, materialSlot = - 1 ) {
 
-	Command.call( this, editor );
+		super( editor );
 
-	this.type = 'SetMaterialValueCommand';
-	this.name = 'Set Material.' + attributeName;
-	this.updatable = true;
+		this.type = 'SetMaterialValueCommand';
+		this.name = editor.strings.getKey( 'command/SetMaterialValue' ) + ': ' + attributeName;
+		this.updatable = true;
 
-	this.object = object;
-	this.material = this.editor.getObjectMaterial( object, materialSlot );
+		this.object = object;
+		this.materialSlot = materialSlot;
 
-	this.oldValue = ( this.material !== undefined ) ? this.material[ attributeName ] : undefined;
-	this.newValue = newValue;
+		const material = ( object !== null ) ? editor.getObjectMaterial( object, materialSlot ) : null;
 
-	this.attributeName = attributeName;
+		this.oldValue = ( material !== null ) ? material[ attributeName ] : null;
+		this.newValue = newValue;
 
-};
+		this.attributeName = attributeName;
 
-SetMaterialValueCommand.prototype = {
+	}
 
-	execute: function () {
+	execute() {
 
-		this.material[ this.attributeName ] = this.newValue;
-		this.material.needsUpdate = true;
+		const material = this.editor.getObjectMaterial( this.object, this.materialSlot );
 
-		this.editor.signals.objectChanged.dispatch( this.object );
-		this.editor.signals.materialChanged.dispatch( this.material );
-
-	},
-
-	undo: function () {
-
-		this.material[ this.attributeName ] = this.oldValue;
-		this.material.needsUpdate = true;
+		material[ this.attributeName ] = this.newValue;
+		material.needsUpdate = true;
 
 		this.editor.signals.objectChanged.dispatch( this.object );
-		this.editor.signals.materialChanged.dispatch( this.material );
+		this.editor.signals.materialChanged.dispatch( this.object, this.materialSlot );
 
-	},
+	}
 
-	update: function ( cmd ) {
+	undo() {
+
+		const material = this.editor.getObjectMaterial( this.object, this.materialSlot );
+
+		material[ this.attributeName ] = this.oldValue;
+		material.needsUpdate = true;
+
+		this.editor.signals.objectChanged.dispatch( this.object );
+		this.editor.signals.materialChanged.dispatch( this.object, this.materialSlot );
+
+	}
+
+	update( cmd ) {
 
 		this.newValue = cmd.newValue;
 
-	},
+	}
 
-	toJSON: function () {
+	toJSON() {
 
-		var output = Command.prototype.toJSON.call( this );
+		const output = super.toJSON( this );
 
 		output.objectUuid = this.object.uuid;
 		output.attributeName = this.attributeName;
 		output.oldValue = this.oldValue;
 		output.newValue = this.newValue;
+		output.materialSlot = this.materialSlot;
 
 		return output;
 
-	},
+	}
 
-	fromJSON: function ( json ) {
+	fromJSON( json ) {
 
-		Command.prototype.fromJSON.call( this, json );
+		super.fromJSON( json );
 
 		this.attributeName = json.attributeName;
 		this.oldValue = json.oldValue;
 		this.newValue = json.newValue;
 		this.object = this.editor.objectByUuid( json.objectUuid );
+		this.materialSlot = json.materialSlot;
 
 	}
 
-};
+}
+
+export { SetMaterialValueCommand };

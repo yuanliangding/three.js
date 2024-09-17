@@ -1,30 +1,32 @@
-/**
- * @author mrdoob / http://mrdoob.com/
- */
+import { UIElement, UIPanel, UIText } from './libs/ui.js';
 
-var Script = function ( editor ) {
+import { SetScriptValueCommand } from './commands/SetScriptValueCommand.js';
+import { SetMaterialValueCommand } from './commands/SetMaterialValueCommand.js';
 
-	var signals = editor.signals;
+function Script( editor ) {
 
-	var container = new UI.Panel();
+	const signals = editor.signals;
+	const strings = editor.strings;
+
+	const container = new UIPanel();
 	container.setId( 'script' );
 	container.setPosition( 'absolute' );
 	container.setBackgroundColor( '#272822' );
 	container.setDisplay( 'none' );
 
-	var header = new UI.Panel();
+	const header = new UIPanel();
 	header.setPadding( '10px' );
 	container.add( header );
 
-	var title = new UI.Text().setColor( '#fff' );
+	const title = new UIText().setColor( '#fff' );
 	header.add( title );
 
-	var buttonSVG = ( function () {
+	const buttonSVG = ( function () {
 
-		var svg = document.createElementNS( 'http://www.w3.org/2000/svg', 'svg' );
+		const svg = document.createElementNS( 'http://www.w3.org/2000/svg', 'svg' );
 		svg.setAttribute( 'width', 32 );
 		svg.setAttribute( 'height', 32 );
-		var path = document.createElementNS( 'http://www.w3.org/2000/svg', 'path' );
+		const path = document.createElementNS( 'http://www.w3.org/2000/svg', 'path' );
 		path.setAttribute( 'd', 'M 12,12 L 22,22 M 22,12 12,22' );
 		path.setAttribute( 'stroke', '#fff' );
 		svg.appendChild( path );
@@ -32,7 +34,7 @@ var Script = function ( editor ) {
 
 	} )();
 
-	var close = new UI.Element( buttonSVG );
+	const close = new UIElement( buttonSVG );
 	close.setPosition( 'absolute' );
 	close.setTop( '3px' );
 	close.setRight( '1px' );
@@ -45,21 +47,21 @@ var Script = function ( editor ) {
 	header.add( close );
 
 
-	var renderer;
+	let renderer;
 
-	signals.rendererChanged.add( function ( newRenderer ) {
+	signals.rendererCreated.add( function ( newRenderer ) {
 
 		renderer = newRenderer;
 
 	} );
 
 
-	var delay;
-	var currentMode;
-	var currentScript;
-	var currentObject;
+	let delay;
+	let currentMode;
+	let currentScript;
+	let currentObject;
 
-	var codemirror = CodeMirror( container.dom, {
+	const codemirror = CodeMirror( container.dom, {
 		value: '',
 		lineNumbers: true,
 		matchBrackets: true,
@@ -78,7 +80,7 @@ var Script = function ( editor ) {
 		clearTimeout( delay );
 		delay = setTimeout( function () {
 
-			var value = codemirror.getValue();
+			const value = codemirror.getValue();
 
 			if ( ! validate( value ) ) return;
 
@@ -89,31 +91,34 @@ var Script = function ( editor ) {
 					editor.execute( new SetScriptValueCommand( editor, currentObject, currentScript, 'source', value ) );
 
 				}
+
 				return;
 
 			}
 
 			if ( currentScript !== 'programInfo' ) return;
 
-			var json = JSON.parse( value );
+			const json = JSON.parse( value );
 
 			if ( JSON.stringify( currentObject.material.defines ) !== JSON.stringify( json.defines ) ) {
 
-				var cmd = new SetMaterialValueCommand( editor, currentObject, 'defines', json.defines );
+				const cmd = new SetMaterialValueCommand( editor, currentObject, 'defines', json.defines );
 				cmd.updatable = false;
 				editor.execute( cmd );
 
 			}
+
 			if ( JSON.stringify( currentObject.material.uniforms ) !== JSON.stringify( json.uniforms ) ) {
 
-				var cmd = new SetMaterialValueCommand( editor, currentObject, 'uniforms', json.uniforms );
+				const cmd = new SetMaterialValueCommand( editor, currentObject, 'uniforms', json.uniforms );
 				cmd.updatable = false;
 				editor.execute( cmd );
 
 			}
+
 			if ( JSON.stringify( currentObject.material.attributes ) !== JSON.stringify( json.attributes ) ) {
 
-				var cmd = new SetMaterialValueCommand( editor, currentObject, 'attributes', json.attributes );
+				const cmd = new SetMaterialValueCommand( editor, currentObject, 'attributes', json.attributes );
 				cmd.updatable = false;
 				editor.execute( cmd );
 
@@ -124,7 +129,7 @@ var Script = function ( editor ) {
 	} );
 
 	// prevent backspace from deleting objects
-	var wrapper = codemirror.getWrapperElement();
+	const wrapper = codemirror.getWrapperElement();
 	wrapper.addEventListener( 'keydown', function ( event ) {
 
 		event.stopPropagation();
@@ -133,13 +138,13 @@ var Script = function ( editor ) {
 
 	// validate
 
-	var errorLines = [];
-	var widgets = [];
+	const errorLines = [];
+	const widgets = [];
 
-	var validate = function ( string ) {
+	const validate = function ( string ) {
 
-		var valid;
-		var errors = [];
+		let valid;
+		let errors = [];
 
 		return codemirror.operation( function () {
 
@@ -163,7 +168,7 @@ var Script = function ( editor ) {
 
 					try {
 
-						var syntax = esprima.parse( string, { tolerant: true } );
+						const syntax = esprima.parse( string, { tolerant: true } );
 						errors = syntax.errors;
 
 					} catch ( error ) {
@@ -177,9 +182,9 @@ var Script = function ( editor ) {
 
 					}
 
-					for ( var i = 0; i < errors.length; i ++ ) {
+					for ( let i = 0; i < errors.length; i ++ ) {
 
-						var error = errors[ i ];
+						const error = errors[ i ];
 						error.message = error.message.replace( /Line [0-9]+: /, '' );
 
 					}
@@ -217,59 +222,30 @@ var Script = function ( editor ) {
 
 				case 'glsl':
 
-					try {
-
-						var shaderType = currentScript === 'vertexShader' ?
-							glslprep.Shader.VERTEX : glslprep.Shader.FRAGMENT;
-
-						glslprep.parseGlsl( string, shaderType );
-
-					} catch ( error ) {
-
-						if ( error instanceof glslprep.SyntaxError ) {
-
-							errors.push( {
-
-								lineNumber: error.line,
-								message: "Syntax Error: " + error.message
-
-							} );
-
-						} else {
-
-							console.error( error.stack || error );
-
-						}
-
-					}
-
-					if ( errors.length !== 0 ) break;
-					if ( renderer instanceof THREE.WebGLRenderer === false ) break;
-
 					currentObject.material[ currentScript ] = string;
 					currentObject.material.needsUpdate = true;
-					signals.materialChanged.dispatch( currentObject.material );
+					signals.materialChanged.dispatch( currentObject, 0 ); // TODO: Add multi-material support
 
-					var programs = renderer.info.programs;
+					const programs = renderer.info.programs;
 
 					valid = true;
-					var parseMessage = /^(?:ERROR|WARNING): \d+:(\d+): (.*)/g;
+					const parseMessage = /^(?:ERROR|WARNING): \d+:(\d+): (.*)/g;
 
-					for ( var i = 0, n = programs.length; i !== n; ++ i ) {
+					for ( let i = 0, n = programs.length; i !== n; ++ i ) {
 
-						var diagnostics = programs[ i ].diagnostics;
+						const diagnostics = programs[ i ].diagnostics;
 
 						if ( diagnostics === undefined ||
 								diagnostics.material !== currentObject.material ) continue;
 
 						if ( ! diagnostics.runnable ) valid = false;
 
-						var shaderInfo = diagnostics[ currentScript ];
-						var lineOffset = shaderInfo.prefix.split( /\r\n|\r|\n/ ).length;
+						const shaderInfo = diagnostics[ currentScript ];
+						const lineOffset = shaderInfo.prefix.split( /\r\n|\r|\n/ ).length;
 
 						while ( true ) {
 
-							var parseResult = parseMessage.exec( shaderInfo.log );
+							const parseResult = parseMessage.exec( shaderInfo.log );
 							if ( parseResult === null ) break;
 
 							errors.push( {
@@ -287,20 +263,20 @@ var Script = function ( editor ) {
 
 			} // mode switch
 
-			for ( var i = 0; i < errors.length; i ++ ) {
+			for ( let i = 0; i < errors.length; i ++ ) {
 
-				var error = errors[ i ];
+				const error = errors[ i ];
 
-				var message = document.createElement( 'div' );
+				const message = document.createElement( 'div' );
 				message.className = 'esprima-error';
 				message.textContent = error.message;
 
-				var lineNumber = Math.max( error.lineNumber, 0 );
+				const lineNumber = Math.max( error.lineNumber, 0 );
 				errorLines.push( lineNumber );
 
 				codemirror.addLineClass( lineNumber, 'background', 'errorLine' );
 
-				var widget = codemirror.addLineWidget( lineNumber, message );
+				const widget = codemirror.addLineWidget( lineNumber, message );
 
 				widgets.push( widget );
 
@@ -314,19 +290,47 @@ var Script = function ( editor ) {
 
 	// tern js autocomplete
 
-	var server = new CodeMirror.TernServer( {
+	const server = new CodeMirror.TernServer( {
 		caseInsensitive: true,
 		plugins: { threejs: null }
 	} );
 
 	codemirror.setOption( 'extraKeys', {
-		'Ctrl-Space': function ( cm ) { server.complete( cm ); },
-		'Ctrl-I': function ( cm ) { server.showType( cm ); },
-		'Ctrl-O': function ( cm ) { server.showDocs( cm ); },
-		'Alt-.': function ( cm ) { server.jumpToDef( cm ); },
-		'Alt-,': function ( cm ) { server.jumpBack( cm ); },
-		'Ctrl-Q': function ( cm ) { server.rename( cm ); },
-		'Ctrl-.': function ( cm ) { server.selectName( cm ); }
+		'Ctrl-Space': function ( cm ) {
+
+			server.complete( cm );
+
+		},
+		'Ctrl-I': function ( cm ) {
+
+			server.showType( cm );
+
+		},
+		'Ctrl-O': function ( cm ) {
+
+			server.showDocs( cm );
+
+		},
+		'Alt-.': function ( cm ) {
+
+			server.jumpToDef( cm );
+
+		},
+		'Alt-,': function ( cm ) {
+
+			server.jumpBack( cm );
+
+		},
+		'Ctrl-Q': function ( cm ) {
+
+			server.rename( cm );
+
+		},
+		'Ctrl-.': function ( cm ) {
+
+			server.selectName( cm );
+
+		}
 	} );
 
 	codemirror.on( 'cursorActivity', function ( cm ) {
@@ -339,8 +343,7 @@ var Script = function ( editor ) {
 	codemirror.on( 'keypress', function ( cm, kb ) {
 
 		if ( currentMode !== 'javascript' ) return;
-		var typed = String.fromCharCode( kb.which || kb.keyCode );
-		if ( /[\w\.]/.exec( typed ) ) {
+		if ( /[\w\.]/.exec( kb.key ) ) {
 
 			server.complete( cm );
 
@@ -357,16 +360,49 @@ var Script = function ( editor ) {
 
 	} );
 
+	function setTitle( object, script ) {
+
+		if ( typeof script === 'object' ) {
+
+			title.setValue( object.name + ' / ' + script.name );
+
+		} else {
+
+			switch ( script ) {
+
+				case 'vertexShader':
+
+					title.setValue( object.material.name + ' / ' + strings.getKey( 'script/title/vertexShader' ) );
+					break;
+
+				case 'fragmentShader':
+
+					title.setValue( object.material.name + ' / ' + strings.getKey( 'script/title/fragmentShader' ) );
+					break;
+
+				case 'programInfo':
+
+					title.setValue( object.material.name + ' / ' + strings.getKey( 'script/title/programInfo' ) );
+					break;
+
+				default:
+
+					throw new Error( 'setTitle: Unknown script' );
+
+			}
+
+		}
+
+	}
+
 	signals.editScript.add( function ( object, script ) {
 
-		var mode, name, source;
+		let mode, source;
 
 		if ( typeof ( script ) === 'object' ) {
 
 			mode = 'javascript';
-			name = script.name;
 			source = script.source;
-			title.setValue( object.name + ' / ' + name );
 
 		} else {
 
@@ -375,34 +411,38 @@ var Script = function ( editor ) {
 				case 'vertexShader':
 
 					mode = 'glsl';
-					name = 'Vertex Shader';
-					source = object.material.vertexShader || "";
+					source = object.material.vertexShader || '';
 
 					break;
 
 				case 'fragmentShader':
 
 					mode = 'glsl';
-					name = 'Fragment Shader';
-					source = object.material.fragmentShader || "";
+					source = object.material.fragmentShader || '';
 
 					break;
 
 				case 'programInfo':
 
 					mode = 'json';
-					name = 'Program Properties';
-					var json = {
+					const json = {
 						defines: object.material.defines,
 						uniforms: object.material.uniforms,
 						attributes: object.material.attributes
 					};
 					source = JSON.stringify( json, null, '\t' );
 
+					break;
+
+				default:
+
+					throw new Error( 'editScript: Unknown script' );
+
 			}
-			title.setValue( object.material.name + ' / ' + name );
 
 		}
+
+		setTitle( object, script );
 
 		currentMode = mode;
 		currentScript = script;
@@ -426,6 +466,38 @@ var Script = function ( editor ) {
 
 	} );
 
+	signals.objectChanged.add( function ( object ) {
+
+		if ( object !== currentObject ) return;
+
+		if ( [ 'programInfo', 'vertexShader', 'fragmentShader' ].includes( currentScript ) ) return;
+
+		setTitle( currentObject, currentScript );
+
+	} );
+
+	signals.scriptChanged.add( function ( script ) {
+
+		if ( script === currentScript ) {
+
+			setTitle( currentObject, currentScript );
+
+		}
+
+	} );
+
+	signals.materialChanged.add( function ( object, slot ) {
+
+		if ( object !== currentObject ) return;
+
+		// TODO: Adds multi-material support
+
+		setTitle( currentObject, currentScript );
+
+	} );
+
 	return container;
 
-};
+}
+
+export { Script };

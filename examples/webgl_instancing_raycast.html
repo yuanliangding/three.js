@@ -1,151 +1,158 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-	<title>three.js webgl - instancing - raycast</title>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-	<link type="text/css" rel="stylesheet" href="main.css">
-</head>
-<body>
-<script type="module">
+	<head>
+		<title>three.js webgl - instancing - raycast</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body>
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "../build/three.module.js",
+					"three/addons/": "./jsm/"
+				}
+			}
+		</script>
 
-	import * as THREE from '../build/three.module.js';
+		<script type="module">
 
-	import Stats from './jsm/libs/stats.module.js';
-	import { GUI } from './jsm/libs/dat.gui.module.js';
-	import { OrbitControls } from "./jsm/controls/OrbitControls.js";
+			import * as THREE from 'three';
 
-	var camera, scene, renderer, stats;
+			import Stats from 'three/addons/libs/stats.module.js';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-	var mesh;
-	var amount = parseInt( window.location.search.substr( 1 ) ) || 10;
-	var count = Math.pow( amount, 3 );
+			let camera, scene, renderer, controls, stats;
 
-	var raycaster = new THREE.Raycaster();
-	var mouse = new THREE.Vector2( 1, 1 );
+			let mesh;
+			const amount = parseInt( window.location.search.slice( 1 ) ) || 10;
+			const count = Math.pow( amount, 3 );
 
-	var rotationTheta = 0.1;
-	var rotationMatrix = new THREE.Matrix4().makeRotationY( rotationTheta );
-	var instanceMatrix = new THREE.Matrix4();
-	var matrix = new THREE.Matrix4();
+			const raycaster = new THREE.Raycaster();
+			const mouse = new THREE.Vector2( 1, 1 );
 
-	init();
-	animate();
+			const color = new THREE.Color();
+			const white = new THREE.Color().setHex( 0xffffff );
 
-	function init() {
+			init();
 
-		camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.1, 100 );
-		camera.position.set( amount, amount, amount );
-		camera.lookAt( 0, 0, 0 );
+			function init() {
 
-		scene = new THREE.Scene();
+				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.1, 100 );
+				camera.position.set( amount, amount, amount );
+				camera.lookAt( 0, 0, 0 );
 
-		var light = new THREE.HemisphereLight( 0xffffff, 0x000088 );
-		light.position.set( - 1, 1.5, 1 );
-		scene.add( light );
+				scene = new THREE.Scene();
 
-		var light = new THREE.HemisphereLight( 0xffffff, 0x880000, 0.5 );
-		light.position.set( - 1, - 1.5, - 1 );
-		scene.add( light );
+				const light = new THREE.HemisphereLight( 0xffffff, 0x888888, 3 );
+				light.position.set( 0, 1, 0 );
+				scene.add( light );
 
-		var geometry = new THREE.SphereBufferGeometry( 0.5 );
-		var material = new THREE.MeshPhongMaterial( { flatShading: true } );
+				const geometry = new THREE.IcosahedronGeometry( 0.5, 3 );
+				const material = new THREE.MeshPhongMaterial( { color: 0xffffff } );
 
-		mesh = new THREE.InstancedMesh( geometry, material, count );
+				mesh = new THREE.InstancedMesh( geometry, material, count );
 
-		var i = 0;
-		var offset = ( amount - 1 ) / 2;
+				let i = 0;
+				const offset = ( amount - 1 ) / 2;
 
-		var transform = new THREE.Object3D();
+				const matrix = new THREE.Matrix4();
 
-		for ( var x = 0; x < amount; x ++ ) {
+				for ( let x = 0; x < amount; x ++ ) {
 
-			for ( var y = 0; y < amount; y ++ ) {
+					for ( let y = 0; y < amount; y ++ ) {
 
-				for ( var z = 0; z < amount; z ++ ) {
+						for ( let z = 0; z < amount; z ++ ) {
 
-					transform.position.set( offset - x, offset - y, offset - z );
-					transform.updateMatrix();
+							matrix.setPosition( offset - x, offset - y, offset - z );
 
-					mesh.setMatrixAt( i ++, transform.matrix );
+							mesh.setMatrixAt( i, matrix );
+							mesh.setColorAt( i, color );
+
+							i ++;
+
+						}
+
+					}
 
 				}
 
+				scene.add( mesh );
+
+				//
+
+				const gui = new GUI();
+				gui.add( mesh, 'count', 0, count );
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setAnimationLoop( animate );
+				document.body.appendChild( renderer.domElement );
+
+				controls = new OrbitControls( camera, renderer.domElement );
+				controls.enableDamping = true;
+				controls.enableZoom = false;
+				controls.enablePan = false;
+
+				stats = new Stats();
+				document.body.appendChild( stats.dom );
+
+				window.addEventListener( 'resize', onWindowResize );
+				document.addEventListener( 'mousemove', onMouseMove );
+
 			}
 
-		}
+			function onWindowResize() {
 
-		scene.add( mesh );
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
 
-		//
+				renderer.setSize( window.innerWidth, window.innerHeight );
 
-		var gui = new GUI();
-		gui.add( mesh, 'count', 0, count );
+			}
 
-		renderer = new THREE.WebGLRenderer( { antialias: true } );
-		renderer.setPixelRatio( window.devicePixelRatio );
-		renderer.setSize( window.innerWidth, window.innerHeight );
-		document.body.appendChild( renderer.domElement );
+			function onMouseMove( event ) {
 
-		new OrbitControls( camera, renderer.domElement );
+				event.preventDefault();
 
-		stats = new Stats();
-		document.body.appendChild( stats.dom );
+				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
-		window.addEventListener( 'resize', onWindowResize, false );
-		document.addEventListener( 'mousemove', onMouseMove, false );
+			}
 
-	}
+			function animate() {
 
-	function onWindowResize() {
+				controls.update();
 
-		camera.aspect = window.innerWidth / window.innerHeight;
-		camera.updateProjectionMatrix();
+				raycaster.setFromCamera( mouse, camera );
 
-		renderer.setSize( window.innerWidth, window.innerHeight );
+				const intersection = raycaster.intersectObject( mesh );
 
-	}
+				if ( intersection.length > 0 ) {
 
-	function onMouseMove( event ) {
+					const instanceId = intersection[ 0 ].instanceId;
 
-		event.preventDefault();
+					mesh.getColorAt( instanceId, color );
 
-		mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-		mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+					if ( color.equals( white ) ) {
 
-	}
+						mesh.setColorAt( instanceId, color.setHex( Math.random() * 0xffffff ) );
 
-	function animate() {
+						mesh.instanceColor.needsUpdate = true;
 
-		requestAnimationFrame( animate );
+					}
 
-		render();
+				}
 
-	}
+				renderer.render( scene, camera );
 
-	function render() {
+				stats.update();
 
-		raycaster.setFromCamera( mouse, camera );
+			}
 
-		var intersection = raycaster.intersectObject( mesh );
-
-		if ( intersection.length > 0 ) {
-
-			mesh.getMatrixAt( intersection[ 0 ].instanceId, instanceMatrix );
-			matrix.multiplyMatrices( instanceMatrix, rotationMatrix );
-
-			mesh.setMatrixAt( intersection[ 0 ].instanceId, matrix );
-			mesh.instanceMatrix.needsUpdate = true;
-
-		}
-
-		renderer.render( scene, camera );
-
-		stats.update();
-
-	}
-
-</script>
-
-</body>
+		</script>
+	</body>
 </html>
